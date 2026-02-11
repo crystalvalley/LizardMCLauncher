@@ -22,6 +22,13 @@ public class CloudRestService(SettingProvider _settingProvider)
         request.AddHeader("Authorization", $"Token {_key}");
 
         var response = await _client.ExecuteAsync<string>(request);
+
+        Console.WriteLine($"{path}");
+        Console.WriteLine($"{response.Data}");
+        Console.WriteLine($"{response.Content}");
+        Console.WriteLine($"{response.StatusCode}");
+        Console.WriteLine($"{response.ErrorMessage}");
+
         return response.Data ?? string.Empty;
     }
 
@@ -33,6 +40,12 @@ public class CloudRestService(SettingProvider _settingProvider)
         request.AddHeader("Authorization", $"Token {_key}");
 
         var response = await _client.ExecuteAsync<string>(request);
+
+        Console.WriteLine($"{path}");
+        Console.WriteLine($"{response.Data}");
+        Console.WriteLine($"{response.Content}");
+        Console.WriteLine($"{response.StatusCode}");
+        Console.WriteLine($"{response.ErrorMessage}");
         return response.Data ?? string.Empty;
     }
 }

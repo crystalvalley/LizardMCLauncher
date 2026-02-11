@@ -16,7 +16,7 @@ public class GameLaunchService(RestService _restService, IJavaLocatorService _ja
 {
     public event EventHandler<(int ProgressedTasks, int TotalTasks)>? FileProgressChanged;
 
-    public async Task CheckMinecraftInstalled(string minecraftVersion,string neoforgeVersion,string resourceVersion)
+    public async Task CheckMinecraftInstalled(string minecraftVersion)
     {
         var path = new MinecraftPath();
         var launcher = new MinecraftLauncher(path);
@@ -83,7 +83,7 @@ public class GameLaunchService(RestService _restService, IJavaLocatorService _ja
             ScreenHeight = settings.ScreenHeight,
             FullScreen = settings.FullScreen,
             ServerIp = settings.AutoConnectEnabled ? settings.ServerAddress : null,
-            ServerPort = settings.AutoConnectEnabled && settings.ServerPort.HasValue ? settings.ServerPort.Value : 0,
+            ServerPort = settings.AutoConnectEnabled && settings.ServerPort.HasValue ? settings.ServerPort.Value : 25565,
         };
 
         var process = await launcher.BuildProcessAsync(version, launchOption);

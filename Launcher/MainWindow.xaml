@@ -389,7 +389,7 @@
                                 <TextBlock Text="LizardMC Launcher" FontSize="22" FontWeight="Bold"
                                            Foreground="{StaticResource AccentBrush}" Margin="0,0,0,8"/>
 
-                                <TextBlock Text="버전 1.0.0" FontSize="14"
+                                <TextBlock x:Name="InfoVersionText" Text="버전" FontSize="14"
                                            Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,20"/>
 
                                 <Border Height="1" Background="{StaticResource BorderBrush}" Margin="0,0,0,20"/>

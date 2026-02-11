@@ -21,3 +21,9 @@ Launcher/Properties/
 Launcher/nul
 
 ServerSide/Properties/
+
+ServerSide/.dockerignore
+
+ServerSide/Dockerfile
+
+ServerSide/dotnet-tools.json

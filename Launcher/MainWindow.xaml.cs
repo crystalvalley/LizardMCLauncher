@@ -37,6 +37,7 @@ namespace Launcher
 
             var ver = Assembly.GetExecutingAssembly().GetName().Version!;
             AppVersionText.Text = $"v{ver.Major}.{ver.Minor}.{ver.Build}";
+            InfoVersionText.Text = $"버전 {ver.Major}.{ver.Minor}.{ver.Build}";
             _settings = settings;
 
             GameDirTextBox.Text = _settings.GameDirectory;
@@ -70,6 +71,7 @@ namespace Launcher
             {
                 await CheckForUpdatesAsync();
                 await LoadNoticesAsync();
+                await TrySilentLoginAsync();
             };
         }
 
@@ -85,7 +87,7 @@ namespace Launcher
 
                 if (latestVersion > currentVersion)
                 {
-                    UpdateDetailText.Text = $"v{currentVersion} → v{_latestVersion}";
+                    UpdateDetailText.Text = $"v{currentVersion!.Major}.{currentVersion.Minor}.{currentVersion.Build} → v{_latestVersion}";
                     UpdateBanner.Visibility = Visibility.Visible;
                 }
             }
@@ -397,6 +399,26 @@ namespace Launcher
         }
 
         // Login
+        private async Task TrySilentLoginAsync()
+        {
+            try
+            {
+                var session = await _authService.LoginSilentlyAsync();
+                if (!string.IsNullOrEmpty(session.Username))
+                {
+                    PlayerNameText.Text = session.Username;
+                    PlayerStatusText.Text = "로그인됨";
+                    LoginButton.Content = "완료";
+                    LoginButton.IsEnabled = false;
+                    PlayButton.IsEnabled = true;
+                }
+            }
+            catch
+            {
+                // 자동 로그인 실패 시 무시 — 유저가 수동으로 로그인
+            }
+        }
+
         private async void LoginButton_Click(object sender, RoutedEventArgs e)
         {
             LoginButton.IsEnabled = false;
@@ -469,11 +491,7 @@ namespace Launcher
                 var forceResync = ForceResyncCheckBox.IsChecked == true;
 
                 // 마인크래프트 인스톨 상황 확인 및 인스톨
-                await _gameLaunchService.CheckMinecraftInstalled(
-                    versionInfo.MinecraftVersion,
-                    versionInfo.NeoforgeVersion,
-                    versionInfo.ResourceVersion
-                    );
+                await _gameLaunchService.CheckMinecraftInstalled(versionInfo.MinecraftVersion);
 
                 // 네오포지 인스톨 상황 확인 및 인스톨
                 var checkResult = _gameLaunchService.CheckNeoforgeInstalled(versionInfo.NeoforgeVersion);

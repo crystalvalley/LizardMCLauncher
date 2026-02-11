@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Text.Json;
 
 namespace Launcher.Models;
@@ -31,7 +31,7 @@ public class LauncherSettings
 
         try
         {
-            var json = File.ReadAllText(SettingsPath);
+            var json = File.ReadAllText(SettingsPath);            
             return JsonSerializer.Deserialize<LauncherSettings>(json) ?? new LauncherSettings();
         }
         catch
