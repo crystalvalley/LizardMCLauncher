@@ -1,0 +1,23 @@
+# Build output
+bin/
+obj/
+
+# Visual Studio
+.vs/
+*.user
+
+# Configuration (contains secrets)
+appsettings.json
+appsettings.*.json
+
+# Claude
+.claude/
+
+# Publish profiles
+Properties/PublishProfiles/
+
+Launcher/Properties/
+
+Launcher/nul
+
+ServerSide/Properties/

@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/솔루션 항목/">
+    <File Path="LICENSE" />
+    <File Path="README.md" />
+  </Folder>
+  <Project Path="Launcher/Launcher.csproj" Id="ecf97de3-12d1-431c-a3ed-225115a03db2" />
+  <Project Path="ServerSide/ServerSide.csproj" Id="b0112569-ae45-40f5-9ffe-af1a3c30b9cc" />
+</Solution>
