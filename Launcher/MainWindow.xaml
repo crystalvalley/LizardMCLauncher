@@ -166,6 +166,22 @@
                                       Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"
                                       Margin="0,0,0,8"/>
 
+                            <TextBlock x:Name="InstallStatusText"
+                                       Text="설치 준비 대기 중"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       FontSize="12"
+                                       Margin="0,0,0,8"/>
+
+                            <Button x:Name="RetryInstallButton"
+                                    Content="설치 재시도"
+                                    Style="{StaticResource PrimaryButtonStyle}"
+                                    Height="36"
+                                    Padding="24,0"
+                                    HorizontalAlignment="Left"
+                                    Margin="0,0,0,8"
+                                    Visibility="Collapsed"
+                                    Click="RetryInstallButton_Click"/>
+
                             <Button x:Name="PlayButton" Content="&#x25B6;  플레이"
                                     Style="{StaticResource PrimaryButtonStyle}"
                                     Height="52" Padding="40,0"

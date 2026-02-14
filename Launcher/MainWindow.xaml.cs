@@ -2,9 +2,11 @@
 using System.IO;
 using System.IO.Compression;
 using System.Reflection;
+using System.Net.Http;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Threading;
 using Launcher.Models;
 using Launcher.Services;
 
@@ -17,7 +19,12 @@ namespace Launcher
         private readonly IJavaLocatorService _javaLocatorService;
         private readonly RestService _restService;
         private readonly LauncherSettings _settings;
+        private readonly SemaphoreSlim _installationLock = new(1, 1);
         private string _latestVersion = "";
+        private Task<bool>? _initialInstallTask;
+        private bool _isLoggedIn;
+        private bool _isInstallReady;
+        private bool _isInstalling;
 
         private bool IsCustomJavaMode => ((RadioButton)FindName("JavaCustomRadio")).IsChecked == true;
 
@@ -64,15 +71,87 @@ namespace Launcher
                 Dispatcher.Invoke(() =>
                 {
                     PlayButton.Content = $"설치 중... ({args.ProgressedTasks}/{args.TotalTasks})";
+                    SetInstallStatus($"마인크래프트 파일 확인 중... ({args.ProgressedTasks}/{args.TotalTasks})");
                 });
             };
 
             Loaded += async (_, _) =>
             {
+                _initialInstallTask = PrepareInstallationAsync();
                 await CheckForUpdatesAsync();
                 await LoadNoticesAsync();
                 await TrySilentLoginAsync();
             };
+        }
+
+        private void UpdatePlayButtonState()
+        {
+            if (_isInstalling)
+            {
+                PlayButton.IsEnabled = false;
+                return;
+            }
+
+            PlayButton.Content = "\u25B6  플레이";
+            PlayButton.IsEnabled = _isLoggedIn && _isInstallReady;
+        }
+
+        private void SetInstallStatus(string message, bool showRetryButton = false)
+        {
+            InstallStatusText.Text = message;
+            RetryInstallButton.Visibility = showRetryButton ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private async Task<bool> PrepareInstallationAsync(bool forceResync = false)
+        {
+            await _installationLock.WaitAsync();
+            try
+            {
+                _isInstalling = true;
+                _isInstallReady = false;
+                Dispatcher.Invoke(() =>
+                {
+                    PlayButton.IsEnabled = false;
+                    PlayButton.Content = forceResync ? "재설치 중..." : "설치 확인 중...";
+                    SetInstallStatus(forceResync ? "모드팩 재설치 준비 중..." : "설치 상태 확인 중...");
+                });
+
+                Dispatcher.Invoke(() => SetInstallStatus("버전 정보 조회 중..."));
+                var versionInfo = await _restService.GetVersionInfoAsync();
+
+                // 마인크래프트 인스톨 상황 확인 및 인스톨
+                Dispatcher.Invoke(() => SetInstallStatus("마인크래프트 설치 상태 확인 중..."));
+                await _gameLaunchService.CheckMinecraftInstalled(versionInfo.MinecraftVersion);
+
+                // 네오포지 인스톨 상황 확인 및 인스톨
+                Dispatcher.Invoke(() => SetInstallStatus("NeoForge 설치 상태 확인 중..."));
+                var isNeoforgeInstalled = _gameLaunchService.CheckNeoforgeInstalled(versionInfo.NeoforgeVersion);
+                if (!isNeoforgeInstalled || forceResync)
+                {
+                    Dispatcher.Invoke(() => SetInstallStatus("NeoForge 설치 중..."));
+                    await _gameLaunchService.InstallNeoforgeAsync(versionInfo.NeoforgeVersion);
+                }
+
+                _isInstallReady = true;
+                Dispatcher.Invoke(() => SetInstallStatus("설치 준비 완료"));
+                return true;
+            }
+            catch (HttpRequestException)
+            {
+                Dispatcher.Invoke(() => SetInstallStatus("서버 연결에 실패했습니다. 네트워크를 확인하고 재시도해주세요.", true));
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Dispatcher.Invoke(() => SetInstallStatus($"설치 준비 실패: {ex.Message}", true));
+                return false;
+            }
+            finally
+            {
+                _isInstalling = false;
+                Dispatcher.Invoke(UpdatePlayButtonState);
+                _installationLock.Release();
+            }
         }
 
         private async Task CheckForUpdatesAsync()
@@ -406,11 +485,12 @@ namespace Launcher
                 var session = await _authService.LoginSilentlyAsync();
                 if (!string.IsNullOrEmpty(session.Username))
                 {
+                    _isLoggedIn = true;
                     PlayerNameText.Text = session.Username;
                     PlayerStatusText.Text = "로그인됨";
                     LoginButton.Content = "완료";
                     LoginButton.IsEnabled = false;
-                    PlayButton.IsEnabled = true;
+                    UpdatePlayButtonState();
                 }
             }
             catch
@@ -430,11 +510,12 @@ namespace Launcher
 
                 if (!string.IsNullOrEmpty(session.Username))
                 {
+                    _isLoggedIn = true;
                     PlayerNameText.Text = session.Username;
                     PlayerStatusText.Text = "로그인됨";
                     LoginButton.Content = "완료";
                     LoginButton.IsEnabled = false;
-                    PlayButton.IsEnabled = true;
+                    UpdatePlayButtonState();
                 }
                 else
                 {
@@ -464,10 +545,20 @@ namespace Launcher
         {
             var playButton = (Button)sender;
             playButton.IsEnabled = false;
-            playButton.Content = "설치 중...";
+            playButton.Content = "실행 준비 중...";
 
             try
             {
+                if (_authService.CurrentSession == null)
+                {
+                    MessageBox.Show(
+                        "로그인이 필요합니다.",
+                        "LizardMC Launcher",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+                    return;
+                }
+
                 _settings.JvmArguments = JvmArgsTextBox.Text;
 
                 if (IsCustomJavaMode)
@@ -487,15 +578,28 @@ namespace Launcher
                     _settings.JavaPath = null;
                 }
 
-                var versionInfo = await _restService.GetVersionInfoAsync();
                 var forceResync = ForceResyncCheckBox.IsChecked == true;
 
-                // 마인크래프트 인스톨 상황 확인 및 인스톨
-                await _gameLaunchService.CheckMinecraftInstalled(versionInfo.MinecraftVersion);
+                if (_initialInstallTask != null)
+                {
+                    var initialPrepareSuccess = await _initialInstallTask;
+                    if (!initialPrepareSuccess && !_isInstallReady)
+                    {
+                        return;
+                    }
+                }
 
-                // 네오포지 인스톨 상황 확인 및 인스톨
-                var checkResult = _gameLaunchService.CheckNeoforgeInstalled(versionInfo.NeoforgeVersion);
-                if (!checkResult&&!forceResync) await _gameLaunchService.InstallNeoforgeAsync(versionInfo.NeoforgeVersion);
+                if (!_isInstallReady || forceResync)
+                {
+                    var prepareSuccess = await PrepareInstallationAsync(forceResync);
+                    if (!prepareSuccess)
+                    {
+                        return;
+                    }
+                }
+
+                var versionInfo = await _restService.GetVersionInfoAsync();
+
 
                 ForceResyncCheckBox.IsChecked = false;
                 playButton.Content = "실행 중...";
@@ -515,8 +619,20 @@ namespace Launcher
             }
             finally
             {
-                playButton.Content = "\u25B6  플레이";
-                playButton.IsEnabled = true;
+                UpdatePlayButtonState();
+            }
+        }
+
+        private async void RetryInstallButton_Click(object sender, RoutedEventArgs e)
+        {
+            RetryInstallButton.IsEnabled = false;
+            try
+            {
+                await PrepareInstallationAsync();
+            }
+            finally
+            {
+                RetryInstallButton.IsEnabled = true;
             }
         }
     }
