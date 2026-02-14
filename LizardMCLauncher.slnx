@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/솔루션 항목/">
+    <File Path="CHANGELOG.md" />
     <File Path="LICENSE" />
     <File Path="README.md" />
   </Folder>
